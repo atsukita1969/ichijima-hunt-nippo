@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#C2410C">
+<title>銃猟日報</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDPGothic:wght@400;700&display=swap">
+<style>
+/* 片手で持つ現場用の1列の画面。上に日付・記録者・午前午後、班員の一覧、獲物、まとめ、下に送信の帯。強調色は狩猟用のオレンジ。 */
+:root{
+  --bg:#ECEFEB; --surface:#FFFFFF; --sunk:#E1E6E1; --fg:#17201B; --muted:#55615A; --line:#C6CFC8;
+  --accent:#C2410C; --accent-fg:#FFFFFF; --accent-soft:#FBE4D8;
+  --warn:#8A5300; --warn-soft:#FAEBCB; --ok:#256B3E; --ok-soft:#DBEEE1; --err:#B42318; --err-soft:#FCE3E0;
+  --scrim:rgba(16,22,18,.5);
+  --font-ui:"BIZ UDPGothic","Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+  --font-mono:"BIZ UDGothic","Noto Sans Mono CJK JP",ui-monospace,Consolas,monospace;
+  --r:12px; --tap:46px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#101512; --surface:#19201C; --sunk:#222A25; --fg:#E5EBE6; --muted:#9AA69E; --line:#313C35;
+    --accent:#FF7B3F; --accent-fg:#1B0C04; --accent-soft:#3B2116;
+    --warn:#F2B34E; --warn-soft:#382A11; --ok:#73C792; --ok-soft:#163322; --err:#FF8A7A; --err-soft:#3D1A16;
+    --scrim:rgba(0,0,0,.62); color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:17px;line-height:1.55;padding-inline:16px;padding-block:0 calc(112px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:default;opacity:.35}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:560px;margin-inline:auto;display:flex;flex-direction:column;gap:22px}
+
+.top{position:sticky;top:0;z-index:5;background:var(--bg);margin-inline:-16px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.app{font-weight:700;font-size:20px;letter-spacing:.02em}
+.form{font-size:13px;color:var(--muted)}
+.pill{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+.pill.sample{background:var(--accent-soft);color:var(--accent)}
+.pill.live{background:var(--ok-soft);color:var(--ok)}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lbl{font-size:13px;color:var(--muted);letter-spacing:.04em}
+.in{height:var(--tap);width:100%;min-width:0;padding:0 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface)}
+textarea.in{height:auto;padding:10px;line-height:1.5;resize:vertical}
+.tabs{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.tabs button{height:var(--tap);border:0;background:transparent;font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;gap:8px}
+.tabs button + button{border-left:1.5px solid var(--line)}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.tabs .n{font-size:14px;font-weight:400;font-variant-numeric:tabular-nums}
+
+main{display:flex;flex-direction:column;gap:26px;padding-top:14px}
+section{display:flex;flex-direction:column;gap:10px}
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h2{font-size:18px;margin:0;font-weight:700;text-wrap:balance}
+.sub{font-size:13px;color:var(--muted);margin:0}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.btn-s{height:40px;padding:0 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);font-size:15px}
+.btn-s.danger{border-color:var(--err);color:var(--err);font-weight:700}
+
+.flash{padding:10px 12px;border-radius:var(--r);font-size:15px}
+.flash.ok{background:var(--ok-soft)}
+.flash.err{background:var(--err-soft)}
+.banner{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--r);background:var(--accent-soft);font-size:15px}
+
+.list{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden}
+.colhead,.mrow{display:grid;grid-template-columns:minmax(0,1fr) 52px 116px;gap:6px;align-items:center;padding-inline:8px}
+.colhead{font-size:12px;color:var(--muted);padding-block:6px;background:var(--sunk);letter-spacing:.03em}
+.colhead span:not(:first-child){text-align:center}
+.mrow{padding-block:5px;border-top:1px solid var(--line)}
+.who{display:flex;align-items:center;gap:10px;min-height:var(--tap);border:0;background:none;text-align:left;padding:0 2px;min-width:0}
+.box{flex:none;width:28px;height:28px;border:2px solid var(--muted);border-radius:6px;display:grid;place-items:center;background:var(--surface)}
+.who[aria-pressed="true"] .box{background:var(--accent);border-color:var(--accent)}
+.who[aria-pressed="true"] .box::after{content:"";width:8px;height:14px;border:solid var(--accent-fg);border-width:0 3px 3px 0;transform:translateY(-2px) rotate(45deg)}
+.nm{min-width:0;word-break:keep-all;overflow-wrap:anywhere;line-height:1.3;color:var(--muted)}
+.who[aria-pressed="true"] .nm{color:var(--fg);font-weight:700}
+.chip{height:42px;border-radius:21px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;padding:0}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.step{display:grid;grid-template-columns:38px 1fr 38px;align-items:center;height:42px;border:1.5px solid var(--line);border-radius:21px;overflow:hidden;background:var(--surface)}
+.step button{height:100%;border:0;background:transparent;font-size:22px;line-height:1}
+.step output{text-align:center;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
+.step.has output{color:var(--accent)}
+
+.stack-s{display:flex;flex-direction:column;gap:10px}
+.catch{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.crow{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.seg{display:flex;width:100%;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;height:42px;border:0;background:var(--surface);font-weight:700;padding:0 4px;white-space:nowrap}
+.seg button + button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.seg.unset{border-color:var(--warn)}
+.fi{display:flex;flex-direction:column;gap:4px;flex:1 1 130px;min-width:0}
+.fi.fix{flex:0 0 auto}
+.fi.sex{flex:0 0 104px}
+.fi.disp{flex:1 1 168px}
+.fi.disp .seg button{padding:0 2px}
+.fi .step{width:116px}
+.mesh{flex:1 1 90px}
+.mesh .in{height:42px;font-family:var(--font-mono);letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.mesh .in.bad{border-color:var(--warn)}
+.del{height:42px;padding:0 12px;border:1.5px solid var(--line);border-radius:8px;background:transparent;color:var(--muted);font-size:15px}
+.btn-add{height:var(--tap);border:1.5px dashed var(--muted);border-radius:var(--r);background:transparent;font-weight:700}
+.empty{margin:0;padding:14px;border-radius:var(--r);background:var(--sunk);color:var(--muted);font-size:15px}
+
+.sum{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+.stats{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0}
+.stats dt{color:var(--muted);font-size:14px}
+.stats dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.tblwrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:15px}
+.tbl th{font-size:12px;color:var(--muted);font-weight:400;text-align:right;padding:4px 6px;border-bottom:1.5px solid var(--line);letter-spacing:.03em}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{text-align:right;padding:6px;border-bottom:1px solid var(--line)}
+.tbl td.z{color:var(--muted)}
+.tbl tfoot td{font-weight:700;border-bottom:0}
+.warns{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.warns li{display:flex;gap:10px;padding:8px 12px;border-radius:8px;background:var(--warn-soft);font-size:15px}
+.warns li::before{content:"確認";flex:none;font-size:12px;font-weight:700;color:var(--warn);padding-top:2px;letter-spacing:.04em}
+.warns li.err{background:var(--err-soft)}
+.warns li.err::before{content:"要入力";color:var(--err)}
+.warns li.ok{background:var(--ok-soft)}
+.warns li.ok::before{content:"OK";color:var(--ok)}
+
+.foot p{margin:0;font-size:14px;color:var(--muted)}
+.confirm{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--r);background:var(--sunk);font-size:15px}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:15px;font-variant-numeric:tabular-nums}
+.hist li{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;border-radius:8px;background:var(--surface)}
+.hist .t{color:var(--muted)}
+
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1.5px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.barin{max-width:560px;margin-inline:auto;display:flex;align-items:center;gap:12px}
+#barinfo{flex:1;min-width:0;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.4}
+#barinfo b{color:var(--fg)}
+#barinfo .sent{color:var(--ok);font-weight:700}
+#barinfo .changed{color:var(--warn);font-weight:700}
+.btn-primary{height:50px;padding:0 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:17px;flex:none}
+
+.overlay{position:fixed;inset:0;z-index:10;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;padding-top:env(safe-area-inset-top,0px)}
+.sheet{width:100%;max-width:600px;max-height:90%;overflow:auto;background:var(--bg);border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.json{margin:0;padding:12px;border-radius:8px;background:var(--surface);border:1.5px solid var(--line);font-family:var(--font-mono);font-size:13px;line-height:1.5;overflow-x:auto;white-space:pre}
+details summary{cursor:pointer;color:var(--muted);font-size:14px}
+.result{padding:12px;border-radius:var(--r);font-size:16px;font-weight:700}
+.result.ok{background:var(--ok-soft)}
+.result.err{background:var(--err-soft);font-weight:400}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <span class="app">銃猟日報</span>
+      <span id="mode" class="pill sample">見本・送信しません</span>
+      <span class="form">様式8号 別紙の入力</span>
+    </div>
+    <div class="hgrid">
+      <label class="fld"><span class="lbl">出動日</span><input id="date" type="date" class="in"></label>
+      <label class="fld"><span class="lbl">記録者</span><select id="recorder" class="in"></select></label>
+    </div>
+    <div class="tabs" role="group" aria-label="時間帯">
+      <button type="button" data-act="tab" data-ses="am" aria-pressed="true">午前 <span class="n">0人</span></button>
+      <button type="button" data-act="tab" data-ses="pm" aria-pressed="false">午後 <span class="n">0人</span></button>
+    </div>
+  </header>
+
+  <main>
+    <div id="flash" class="flash" hidden></div>
+    <div id="banner" class="banner" hidden>
+      <span>初期設定がまだです。会計係が見せるQRコードをスマホのカメラで読み取ると、班員の名簿と送信先がこの端末に入ります。今は見本の班員（実在の人ではありません）で操作を試せます。送信はしません。</span>
+    </div>
+
+    <section aria-labelledby="mem-title">
+      <div class="sechead">
+        <h2 id="mem-title">午前の出動者</h2>
+        <div class="tools">
+          <button type="button" class="btn-s" id="copy-am" data-act="copy-am" hidden>午前と同じ人にする</button>
+          <button type="button" class="btn-s" data-act="all-on">全員</button>
+          <button type="button" class="btn-s" data-act="all-off">全員解除</button>
+        </div>
+      </div>
+      <div class="list">
+        <div class="colhead" aria-hidden="true"><span>班員（タップで出動）</span><span>犬</span><span>運搬（回）</span></div>
+        <div id="list"></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="catch-title">
+      <div class="sechead"><h2 id="catch-title">獲物（午前）</h2></div>
+      <div id="catches" class="stack-s"></div>
+      <button type="button" class="btn-add" data-act="add-catch">＋ 獲物を追加</button>
+    </section>
+
+    <section aria-labelledby="sum-title">
+      <div class="sechead"><h2 id="sum-title">この日のまとめ</h2><span class="sub">午前と午後の合計</span></div>
+      <div class="sum">
+        <dl id="stats" class="stats"></dl>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead><tr><th>班員</th><th>日数</th><th>犬（日）</th><th>運搬（回）</th></tr></thead>
+            <tbody id="tbody"></tbody>
+            <tfoot id="tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+      <ul id="warns" class="warns"></ul>
+    </section>
+
+    <section>
+      <label class="fld"><span class="lbl">備考（任意。氏名は書かないでください）</span><textarea id="note" class="in" rows="2" maxlength="500" placeholder="例：気づいたこと"></textarea></label>
+    </section>
+
+    <section id="hist-sec" aria-labelledby="hist-title" hidden>
+      <div class="sechead"><h2 id="hist-title">この端末から送った日報</h2></div>
+      <ul id="hist" class="hist"></ul>
+    </section>
+
+    <section class="foot" aria-labelledby="set-title">
+      <div class="sechead"><h2 id="set-title">この端末の設定</h2></div>
+      <p id="set-status"></p>
+      <div class="tools">
+        <button type="button" class="btn-s" data-act="ask-sample" id="btn-sample">見本を入れる</button>
+        <button type="button" class="btn-s" data-act="ask-clear">入力を空にする</button>
+        <button type="button" class="btn-s" data-act="toggle-paste">設定を貼り付けて読み込む</button>
+        <button type="button" class="btn-s" data-act="ask-forget" id="btn-forget">この端末から消す</button>
+      </div>
+      <div id="paste" class="confirm" hidden>
+        <label class="fld"><span class="lbl">会計係から受け取った設定の文字列、またはQRコードのURLを貼り付けてください</span>
+          <textarea id="setup-text" class="in" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+        <div class="tools"><button type="button" class="btn-s" data-act="load-paste">読み込む</button></div>
+      </div>
+      <div id="confirm" class="confirm" hidden>
+        <span id="confirm-msg"></span>
+        <div class="tools">
+          <button type="button" class="btn-s danger" data-act="confirm-yes">はい</button>
+          <button type="button" class="btn-s" data-act="confirm-no">やめる</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="bar">
+  <div class="barin">
+    <span id="barinfo"></span>
+    <button type="button" class="btn-primary" data-act="review">確認して送信</button>
+  </div>
+</div>
+
+<div id="review" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rv-title">
+    <div class="sechead">
+      <h2 id="rv-title">送信の確認</h2>
+      <button type="button" class="btn-s" id="rv-close" data-act="close-review">閉じる</button>
+    </div>
+    <dl id="rv-sum" class="stats"></dl>
+    <ul id="rv-errs" class="warns"></ul>
+    <p id="rv-note" class="sub"></p>
+    <div id="rv-result" class="result" hidden></div>
+    <div class="actions">
+      <button type="button" class="btn-primary" id="rv-send" data-act="send">送信する</button>
+      <button type="button" class="btn-s" id="rv-new" data-act="new-day" hidden>新しい日報を始める</button>
+    </div>
+    <details>
+      <summary>送る内容を見る（会員IDだけで、氏名は含みません）</summary>
+      <pre id="rv-json" class="json"></pre>
+    </details>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var APP = "ichijima-hunt-nippo";
+  var K_DRAFT = APP + "/draft-v1", K_CONFIG = APP + "/config-v1", K_SENT = APP + "/sent-v1";
+  var FORMAT = "ichijima-nippo/1";
+  var GAS_PREFIX = "https://script.google.com/macros/s/";
+  var ID_RE = /^[A-Z]{1,3}[0-9]{1,4}$/;
+  var SES = { am: "午前", pm: "午後" };
+  // [送るデータの値, 画面の表示]。値は会計アプリの取込と同じ言葉。「その他」は実際には埋設。
+  var DISPOSALS = [["事業者搬入", "搬入"], ["猟師持ち帰り", "持帰り"], ["その他", "その他"]];
+  var SEXES = ["オス", "メス"], AGES = ["成獣", "幼獣"];
+  var WEEK = ["日", "月", "火", "水", "木", "金", "土"];
+  // 初期設定がない端末で操作を試すための見本の班員（実在の人ではありません）
+  var DUMMY = ["仮山 太郎", "仮山 次郎", "仮田 三郎", "仮野 四郎", "仮山田 健太郎", "仮原 五郎", "仮本 六郎",
+               "仮村 七郎", "仮井 八郎", "仮木 九郎", "仮沢 十郎", "仮島 一男", "仮谷 二男", "仮岡 三男"];
+
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+  function ymd(d){ return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function today(){ return ymd(new Date()); }
+  function isoLocal(){
+    var d = new Date(), o = -d.getTimezoneOffset(), a = Math.abs(o);
+    return ymd(d) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) +
+      (o >= 0 ? "+" : "-") + pad(Math.floor(a / 60)) + ":" + pad(a % 60);
+  }
+  function md(s){
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+    if (!m) return String(s || "");
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return (+m[2]) + "/" + (+m[3]) + "（" + WEEK[d.getDay()] + "）";
+  }
+  function hm(iso){ var m = /T(\d{2}):(\d{2})/.exec(String(iso || "")); return m ? m[1] + ":" + m[2] : ""; }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fmt(x){ return Number.isInteger(x) ? String(x) : x.toFixed(1); }
+  function load(k){ try { var r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function store(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  function drop(k){ try { localStorage.removeItem(k); } catch (e) {} }
+
+  // ---- 初期設定（QRコードのURLの「#setup=」以降。サーバーへは送られない） ----
+  function b64utf8(s){
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    var bin = atob(s), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return new TextDecoder("utf-8", { fatal: true }).decode(u);
+  }
+  function parseSetup(text){
+    var t = String(text || "").trim();
+    var m = /setup=([A-Za-z0-9_-]+)/.exec(t);
+    var raw = m ? m[1] : t;
+    if (!/^[A-Za-z0-9_-]+$/.test(raw)) throw new Error("形式が違います");
+    var o;
+    try { o = JSON.parse(b64utf8(raw)); } catch (e) { throw new Error("内容を読めません"); }
+    if (!o || o.v !== 1) throw new Error("版が違います");
+    if (!/^[A-Za-z0-9_-]{20,120}$/.test(String(o.u || ""))) throw new Error("送信先が違います");
+    if (!/^[0-9A-Za-z]{16,64}$/.test(String(o.p || ""))) throw new Error("合言葉が違います");
+    if (!Array.isArray(o.m) || !o.m.length || o.m.length > 60) throw new Error("班員名簿が違います");
+    var seen = {};
+    var members = o.m.map(function(x){
+      if (!Array.isArray(x) || !ID_RE.test(String(x[0])) || typeof x[1] !== "string" || !x[1].trim() || x[1].length > 30) throw new Error("班員名簿が違います");
+      if (seen[x[0]]) throw new Error("会員IDが重なっています");
+      seen[x[0]] = 1;
+      return { id: x[0], name: x[1].trim() };
+    });
+    return { v: 1, url: GAS_PREFIX + o.u + "/exec", pass: String(o.p), members: members,
+             label: String(o.l || "").slice(0, 40), loaded_at: isoLocal() };
+  }
+  function validConfig(c){
+    if (!c || c.v !== 1 || typeof c.url !== "string" || c.url.indexOf(GAS_PREFIX) !== 0 || !c.pass || !Array.isArray(c.members) || !c.members.length) return null;
+    for (var i = 0; i < c.members.length; i++) {
+      if (!c.members[i] || !ID_RE.test(c.members[i].id) || !c.members[i].name) return null;
+    }
+    return c;
+  }
+
+  var flash = null;
+  var config = validConfig(load(K_CONFIG));
+  if (location.hash.indexOf("#setup=") === 0) {
+    try {
+      config = parseSetup(location.hash.slice(1));
+      store(K_CONFIG, config);
+      flash = { kind: "ok", text: "初期設定を読み込みました（班員 " + config.members.length + "人）。" + (config.label ? "（" + config.label + "）" : "") };
+    } catch (e) {
+      flash = { kind: "err", text: "初期設定のQRコードを読み取れませんでした（" + e.message + "）。もう一度読み取ってください。" };
+    }
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  }
+  var live = !!config;
+  var MEMBERS = live ? config.members : DUMMY.map(function(nm, i){ return { id: "X" + (i < 9 ? "0" : "") + (i + 1), name: nm }; });
+  var known = {};
+  MEMBERS.forEach(function(mb){ known[mb.id] = mb.name; });
+  function nameOf(id){ return id === "other" ? "班員以外" : (known[id] || id); }
+
+  // ---- 入力の状態 ----
+  function blankSession(){ return { m: {}, catches: [] }; }
+  function blankState(){ return { date: today(), recorder: "", am: blankSession(), pm: blankSession(), note: "", sample: false, tab: "am", sent: null }; }
+  function sampleState(){
+    var s = blankState();
+    s.sample = true;
+    s.recorder = "X03";
+    ["X01","X02","X03","X04","X05","X06","X07","X09","X10","X12","X13"].forEach(function(id){ s.am.m[id] = { dog: false, carry: 0 }; });
+    s.am.m.X02.dog = true; s.am.m.X07.dog = true; s.am.m.X05.carry = 1;
+    s.am.catches = [{ sp: "シカ", age: null, sex: "メス", n: 1, mesh: "111", disp: "事業者搬入" }];
+    ["X01","X02","X03","X04","X06","X07","X09","X10","X12","X14"].forEach(function(id){ s.pm.m[id] = { dog: false, carry: 0 }; });
+    s.pm.m.X02.dog = true; s.pm.m.X10.carry = 1;
+    s.pm.catches = [{ sp: "イノシシ", age: "成獣", sex: "オス", n: 1, mesh: "098", disp: "事業者搬入" }];
+    return s;
+  }
+  function loadDraft(){
+    var s = load(K_DRAFT);
+    if (!s || !s.am || !s.pm || !s.am.m || !s.pm.m || !Array.isArray(s.am.catches) || !Array.isArray(s.pm.catches)) {
+      return live ? blankState() : sampleState();
+    }
+    if (live && s.sample) return blankState();
+    ["am", "pm"].forEach(function(k){
+      Object.keys(s[k].m).forEach(function(id){ if (!known[id]) delete s[k].m[id]; });
+    });
+    if (s.recorder && s.recorder !== "other" && !known[s.recorder]) s.recorder = "";
+    s.tab = s.tab === "pm" ? "pm" : "am";
+    if (s.sent === undefined) s.sent = null;
+    return s;
+  }
+  var state = loadDraft();
+  var pending = null, sending = false, result = null, showPaste = false;
+  function save(){ store(K_DRAFT, state); }
+
+  function count(k){ return Object.keys(state[k].m).length; }
+  function heads(k){ return state[k].catches.reduce(function(s, c){ return s + c.n; }, 0); }
+  function carries(k){
+    var m = state[k].m;
+    return Object.keys(m).reduce(function(s, id){ return s + (m[id].carry || 0); }, 0);
+  }
+  function meshOk(s){ return /^[0-9]{3}$/.test(String(s || "")); }
+  function speciesName(c){ return c.sp === "イノシシ" ? (c.age ? "イノシシ(" + c.age + ")" : "イノシシ") : "シカ"; }
+  function carriedHeads(){
+    return state.am.catches.concat(state.pm.catches).reduce(function(s, c){ return s + (c.disp === "事業者搬入" ? c.n : 0); }, 0);
+  }
+  function perMember(){
+    var out = [];
+    MEMBERS.forEach(function(mb){
+      var a = state.am.m[mb.id], p = state.pm.m[mb.id];
+      if (!a && !p) return;
+      out.push({ mb: mb, days: (a ? 0.5 : 0) + (p ? 0.5 : 0),
+        dog: (a && a.dog ? 0.5 : 0) + (p && p.dog ? 0.5 : 0),
+        carry: (a ? a.carry || 0 : 0) + (p ? p.carry || 0 : 0) });
+    });
+    return out;
+  }
+  // err：そろうまで送れない項目。adv：確かめてほしい点（送ることはできる）
+  function problems(){
+    var err = [], adv = [];
+    if (!state.date) err.push("出動日を入れてください。");
+    else if (state.date > today()) adv.push("出動日が今日より後になっています。");
+    if (!state.recorder) err.push("記録者を選んでください。");
+    if (!count("am") && !count("pm")) err.push("出動者を選んでください。");
+    ["am", "pm"].forEach(function(k){
+      var S = state[k], nm = SES[k];
+      if (S.catches.some(function(x){ return !meshOk(x.mesh); })) err.push(nm + "の獲物に、メッシュ番号（3桁）が入っていない行があります。");
+      if (S.catches.some(function(x){ return !x.sex; })) err.push(nm + "の獲物に、雌雄が選ばれていない行があります。");
+      if (S.catches.some(function(x){ return x.sp === "イノシシ" && !x.age; })) err.push(nm + "のイノシシに、成獣か幼獣かが選ばれていない行があります。");
+      if (S.catches.length && !count(k)) err.push(nm + "は獲物がありますが、出動者がいません。");
+    });
+    var note = String(state.note || "").replace(/[\s　]/g, "");
+    if (note && MEMBERS.some(function(mb){ return note.indexOf(mb.name.replace(/[\s　]/g, "")) >= 0; })) {
+      err.push("備考に班員の氏名が入っています。氏名は書かないでください。");
+    }
+    // 会計アプリの取込と同じ確かめ方（1日分で見る）
+    var carried = carriedHeads(), trips = carries("am") + carries("pm");
+    if (carried && !trips) adv.push("事業者搬入の獲物が" + carried + "頭ありますが、運搬の記録がありません。");
+    if (trips > carried) adv.push("運搬" + trips + "回が、事業者搬入の頭数" + carried + "頭より多くなっています。");
+    return { err: err, adv: adv };
+  }
+  function dataForSend(){
+    function ses(k){
+      var S = state[k];
+      return {
+        members: MEMBERS.filter(function(mb){ return S.m[mb.id]; }).map(function(mb){
+          return { id: mb.id, dog: !!S.m[mb.id].dog, carry: S.m[mb.id].carry || 0 };
+        }),
+        catches: S.catches.map(function(c){
+          return { species: speciesName(c), sex: c.sex || null, count: c.n, mesh: c.mesh, disposal: c.disp };
+        })
+      };
+    }
+    return { format: FORMAT, date: state.date, recorder: state.recorder || null, saved_at: isoLocal(),
+             sessions: { am: ses("am"), pm: ses("pm") }, note: String(state.note || "") };
+  }
+  function fingerprint(){ var d = dataForSend(); delete d.saved_at; return JSON.stringify(d); }
+
+  // ---- 表示 ----
+  function renderHead(){
+    var p = $("mode");
+    p.className = "pill " + (live ? "live" : "sample");
+    p.textContent = live ? "本番" : "見本・送信しません";
+    $("banner").hidden = live;
+    $("btn-sample").hidden = live;
+    $("btn-forget").hidden = !live;
+    var f = $("flash");
+    f.hidden = !flash;
+    if (flash) { f.className = "flash " + flash.kind; f.textContent = flash.text; }
+    $("set-status").textContent = live
+      ? "初期設定：済み（班員 " + config.members.length + "人" + (config.label ? "、" + config.label : "") + "）。この端末には、班員の氏名・送信先・合言葉と、入力途中の日報を保存しています。"
+      : "初期設定：まだです。";
+    $("paste").hidden = !showPaste;
+  }
+  function renderTabs(){
+    var btns = document.querySelectorAll('[data-act="tab"]');
+    for (var i = 0; i < btns.length; i++) {
+      var k = btns[i].getAttribute("data-ses");
+      btns[i].setAttribute("aria-pressed", String(state.tab === k));
+      btns[i].querySelector(".n").textContent = count(k) + "人";
+    }
+  }
+  function renderMembers(){
+    var k = state.tab, S = state[k];
+    $("mem-title").textContent = SES[k] + "の出動者";
+    $("copy-am").hidden = k !== "pm";
+    $("list").innerHTML = MEMBERS.map(function(mb){
+      var r = S.m[mb.id], on = !!r, nm = esc(mb.name);
+      return '<div class="mrow">' +
+        '<button type="button" class="who" data-act="toggle" data-id="' + mb.id + '" aria-pressed="' + on + '">' +
+          '<span class="box" aria-hidden="true"></span><span class="nm">' + nm + '</span></button>' +
+        '<button type="button" class="chip" data-act="dog" data-id="' + mb.id + '" aria-pressed="' + (on && r.dog ? "true" : "false") + '"' +
+          (on ? "" : " disabled") + ' aria-label="' + nm + 'の犬">犬</button>' +
+        '<div class="step' + (on && r.carry ? " has" : "") + '" role="group" aria-label="' + nm + 'の運搬回数">' +
+          '<button type="button" data-act="carry-" data-id="' + mb.id + '"' + (on && r.carry > 0 ? "" : " disabled") + ' aria-label="減らす">−</button>' +
+          '<output>' + (on ? r.carry || 0 : 0) + '</output>' +
+          '<button type="button" data-act="carry+" data-id="' + mb.id + '"' + (on ? "" : " disabled") + ' aria-label="増やす">＋</button>' +
+        '</div></div>';
+    }).join("");
+  }
+  function renderCatches(){
+    var k = state.tab, C = state[k].catches;
+    $("catch-title").textContent = "獲物（" + SES[k] + "）";
+    if (!C.length) {
+      $("catches").innerHTML = '<p class="empty">' + SES[k] + "の獲物はまだありません。</p>";
+      return;
+    }
+    $("catches").innerHTML = C.map(function(c, i){
+      function seg(act, opts, cur, label, cls){
+        return '<div class="fi' + (cls ? " " + cls : "") + '"><span class="lbl">' + label + "</span>" +
+          '<div class="seg' + (cur ? "" : " unset") + '" role="group" aria-label="' + label + '">' + opts.map(function(o){
+            var val = Array.isArray(o) ? o[0] : o, txt = Array.isArray(o) ? o[1] : o;
+            return '<button type="button" data-act="' + act + '" data-i="' + i + '" data-v="' + val + '" aria-pressed="' + (cur === val) + '">' + txt + "</button>";
+          }).join("") + "</div></div>";
+      }
+      return '<div class="catch">' +
+        '<div class="crow">' + seg("sp", ["シカ", "イノシシ"], c.sp, "鳥獣") +
+          (c.sp === "イノシシ" ? seg("age", AGES, c.age, "成獣・幼獣") : "") + "</div>" +
+        '<div class="crow">' + seg("sex", SEXES, c.sex, "雌雄", "sex") + seg("disp", DISPOSALS, c.disp, "処分方法", "disp") + "</div>" +
+        '<div class="crow">' +
+          '<div class="fi fix"><span class="lbl">頭数</span><div class="step has" role="group" aria-label="頭数">' +
+            '<button type="button" data-act="n-" data-i="' + i + '"' + (c.n > 1 ? "" : " disabled") + ' aria-label="減らす">−</button>' +
+            "<output>" + c.n + "</output>" +
+            '<button type="button" data-act="n+" data-i="' + i + '" aria-label="増やす">＋</button></div></div>' +
+          '<label class="fi mesh"><span class="lbl">メッシュ番号（3桁）</span>' +
+            '<input class="in mesh-in' + (meshOk(c.mesh) ? "" : " bad") + '" id="mesh-' + k + "-" + i + '" data-i="' + i +
+            '" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="例 111" value="' + esc(c.mesh || "") + '"></label>' +
+          '<button type="button" class="del" data-act="del-catch" data-i="' + i + '">削除</button>' +
+        "</div></div>";
+    }).join("");
+  }
+  function catchText(){
+    var tally = {}, order = [];
+    state.am.catches.concat(state.pm.catches).forEach(function(c){
+      var key = speciesName(c) + " " + (c.sex || "雌雄未選択");
+      if (!(key in tally)) { tally[key] = 0; order.push(key); }
+      tally[key] += c.n;
+    });
+    return order.length ? order.map(function(k){ return k + " " + tally[k] + "頭"; }).join("、") : "なし";
+  }
+  function renderSummary(){
+    var rows = perMember();
+    var days = rows.reduce(function(s, r){ return s + r.days; }, 0);
+    var full = rows.filter(function(r){ return r.days === 1; }).length;
+    var dogs = rows.reduce(function(s, r){ return s + r.dog; }, 0);
+    var carry = rows.reduce(function(s, r){ return s + r.carry; }, 0);
+    $("stats").innerHTML =
+      "<dt>出動者</dt><dd>" + rows.length + "人（全日 " + full + "・半日 " + (rows.length - full) + "）</dd>" +
+      "<dt>延べ日数</dt><dd>" + fmt(days) + "日</dd>" +
+      "<dt>犬</dt><dd>延べ " + fmt(dogs) + "日</dd>" +
+      "<dt>獲物</dt><dd>" + esc(catchText()) + "</dd>" +
+      "<dt>搬入と運搬</dt><dd>事業者搬入 " + carriedHeads() + "頭・運搬 " + carry + "回</dd>";
+    $("tbody").innerHTML = rows.length ? rows.map(function(r){
+      return "<tr><td>" + esc(r.mb.name) + "</td><td>" + fmt(r.days) + "</td>" +
+        '<td class="' + (r.dog ? "" : "z") + '">' + (r.dog ? fmt(r.dog) : "－") + "</td>" +
+        '<td class="' + (r.carry ? "" : "z") + '">' + (r.carry ? r.carry : "－") + "</td></tr>";
+    }).join("") : '<tr><td colspan="4" class="z">出動者はまだいません。</td></tr>';
+    $("tfoot").innerHTML = rows.length ? "<tr><td>計</td><td>" + fmt(days) + "</td><td>" + fmt(dogs) + "</td><td>" + carry + "</td></tr>" : "";
+    var p = problems();
+    var items = p.err.map(function(t){ return '<li class="err">' + esc(t) + "</li>"; })
+      .concat(p.adv.map(function(t){ return "<li>" + esc(t) + "</li>"; }));
+    $("warns").innerHTML = items.length ? items.join("") : '<li class="ok">送信できます。</li>';
+  }
+  function renderBar(){
+    var days = perMember().reduce(function(s, r){ return s + r.days; }, 0);
+    var tail = "";
+    if (state.sent) {
+      tail = state.sent.fp === fingerprint()
+        ? '<br><span class="sent">送信済み（受付 ' + state.sent.receipt + "）</span>"
+        : '<br><span class="changed">送信後に変更あり。送り直してください</span>';
+    } else {
+      tail = "<br>延べ " + fmt(days) + "日・獲物 " + (heads("am") + heads("pm")) + "頭";
+    }
+    $("barinfo").innerHTML = "<b>" + esc(md(state.date)) + "</b>　午前 " + count("am") + "人・午後 " + count("pm") + "人" + tail;
+  }
+  function renderHist(){
+    var h = live ? (load(K_SENT) || []) : [];
+    $("hist-sec").hidden = !h.length;
+    $("hist").innerHTML = h.slice(0, 10).map(function(x){
+      return "<li><span>" + esc(md(x.date)) + "</span><span>受付 " + esc(x.receipt) + '</span><span class="t">' + esc(md(String(x.received_at).slice(0, 10)) + " " + hm(x.received_at)) + "</span></li>";
+    }).join("");
+  }
+  function renderConfirm(){
+    $("confirm").hidden = !pending;
+    var msg = { clear: "今の入力をすべて消します。よろしいですか？",
+                sample: "今の入力を消して、見本のデータを入れます。よろしいですか？",
+                forget: "この端末から、班員の氏名・送信先・合言葉・入力途中の日報・送信の記録をすべて消します。よろしいですか？" };
+    if (pending) $("confirm-msg").textContent = msg[pending];
+  }
+  function syncInputs(){
+    $("date").value = state.date || "";
+    $("recorder").value = state.recorder || "";
+    $("note").value = state.note || "";
+  }
+  function renderReview(){
+    var p = problems();
+    $("rv-sum").innerHTML =
+      "<dt>出動日</dt><dd>" + esc(md(state.date)) + "</dd>" +
+      "<dt>記録者</dt><dd>" + esc(state.recorder ? nameOf(state.recorder) : "未選択") + "</dd>" +
+      "<dt>出動者</dt><dd>午前 " + count("am") + "人・午後 " + count("pm") + "人</dd>" +
+      "<dt>獲物</dt><dd>" + esc(catchText()) + "</dd>";
+    $("rv-errs").innerHTML = p.err.map(function(t){ return '<li class="err">' + esc(t) + "</li>"; })
+      .concat(p.adv.map(function(t){ return "<li>" + esc(t) + "</li>"; })).join("");
+    var same = state.sent && state.sent.fp === fingerprint();
+    var note = !live ? "見本の状態なので送信できません。会計係のQRコードを読み取ると送信できるようになります。"
+      : p.err.length ? "「要入力」の項目がそろうと送信できます。"
+      : p.adv.length ? "「確認」の点に問題がなければ、送信してください。"
+      : same ? "この内容は送信済みです。" : "";
+    $("rv-note").textContent = note;
+    $("rv-note").hidden = !note;
+    var btn = $("rv-send");
+    btn.disabled = !live || p.err.length > 0 || sending;
+    btn.textContent = sending ? "送信中…" : (same ? "もう一度送る" : "送信する");
+    var r = $("rv-result");
+    r.hidden = !result;
+    if (result) { r.className = "result " + result.kind; r.textContent = result.text; }
+    $("rv-new").hidden = !(result && result.kind === "ok");
+    var d = dataForSend();
+    $("rv-json").textContent = JSON.stringify(d, null, 2);
+  }
+  function renderAll(){
+    renderHead(); renderTabs(); renderMembers(); renderCatches(); renderSummary(); renderBar(); renderHist(); renderConfirm();
+    if (!$("review").hidden) renderReview();
+  }
+
+  // ---- 送信 ----
+  function errorText(res){
+    switch (res && res.error) {
+      case "bad_pass": return "合言葉が合いません。会計係に新しいQRコードをもらい、読み直してください。";
+      case "bad_data": return "送った内容に問題がありました（" + (res.detail || "") + "）。入力を直して、もう一度送ってください。";
+      case "too_large": return "内容が大きすぎます。会計係に連絡してください。";
+      case "server": return "受付側でエラーが起きました（" + (res.detail || "") + "）。少し待ってから、もう一度送ってください。";
+      default: return "受付から思わぬ返事がありました。会計係に連絡してください。";
+    }
+  }
+  function send(){
+    if (!live || sending) return;
+    if (problems().err.length) return;
+    sending = true; result = null; renderReview();
+    var data = dataForSend(), fp = fingerprint();
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, 30000);
+    fetch(config.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ pass: config.pass, data: data }),
+      cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer",
+      signal: ctrl ? ctrl.signal : undefined
+    }).then(function(r){ return r.text(); }).then(function(t){
+      var res;
+      try { res = JSON.parse(t); } catch (e) { throw new Error("返事を読めませんでした"); }
+      if (res && res.ok) {
+        state.sent = { receipt: res.receipt, received_at: res.received_at, fp: fp };
+        save();
+        var h = load(K_SENT) || [];
+        h.unshift({ date: data.date, receipt: res.receipt, received_at: res.received_at });
+        store(K_SENT, h.slice(0, 50));
+        result = { kind: "ok", text: "送信しました。受付番号 " + res.receipt + "（" + hm(res.received_at) + "）" };
+      } else {
+        result = { kind: "err", text: errorText(res) };
+      }
+    }).catch(function(e){
+      var aborted = e && e.name === "AbortError";
+      result = { kind: "err", text: (aborted ? "時間内に返事がありませんでした。" : "送れませんでした。") +
+        "電波の良いところで、もう一度「送信する」を押してください。入力は残っています。" };
+    }).then(function(){
+      clearTimeout(timer);
+      sending = false;
+      renderAll();
+      renderReview();
+    });
+  }
+
+  function openReview(){ result = null; $("review").hidden = false; renderReview(); $("rv-close").focus(); }
+  function closeReview(){ if (sending) return; $("review").hidden = true; }
+  function resetTo(s){ var tab = state.tab; state = s; state.tab = tab; syncInputs(); }
+
+  document.addEventListener("click", function(e){
+    if (e.target === $("review")) { closeReview(); return; }
+    var b = e.target.closest("[data-act]");
+    if (!b || b.disabled) return;
+    var act = b.getAttribute("data-act"), k = state.tab, S = state[k];
+    var id = b.getAttribute("data-id"), iAttr = b.getAttribute("data-i"), i = iAttr === null ? -1 : +iAttr, v = b.getAttribute("data-v");
+    var hadFocus = document.activeElement === b;
+    switch (act) {
+      case "tab": state.tab = b.getAttribute("data-ses"); break;
+      case "toggle": if (S.m[id]) delete S.m[id]; else S.m[id] = { dog: false, carry: 0 }; break;
+      case "dog": if (S.m[id]) S.m[id].dog = !S.m[id].dog; break;
+      case "carry+": if (S.m[id]) S.m[id].carry = Math.min(9, (S.m[id].carry || 0) + 1); break;
+      case "carry-": if (S.m[id]) S.m[id].carry = Math.max(0, (S.m[id].carry || 0) - 1); break;
+      case "all-on": MEMBERS.forEach(function(mb){ if (!S.m[mb.id]) S.m[mb.id] = { dog: false, carry: 0 }; }); break;
+      case "all-off": S.m = {}; break;
+      case "copy-am":
+        S.m = {};
+        Object.keys(state.am.m).forEach(function(mid){ S.m[mid] = { dog: !!state.am.m[mid].dog, carry: 0 }; });
+        break;
+      case "add-catch": S.catches.push({ sp: "シカ", age: null, sex: null, n: 1, mesh: "", disp: "事業者搬入" }); break;
+      case "del-catch": if (S.catches[i]) S.catches.splice(i, 1); break;
+      case "sp": if (S.catches[i]) { if (S.catches[i].sp !== v) S.catches[i].age = null; S.catches[i].sp = v; } break;
+      case "age": if (S.catches[i]) S.catches[i].age = v; break;
+      case "sex": if (S.catches[i]) S.catches[i].sex = v; break;
+      case "disp": if (S.catches[i]) S.catches[i].disp = v; break;
+      case "n+": if (S.catches[i]) S.catches[i].n = Math.min(99, S.catches[i].n + 1); break;
+      case "n-": if (S.catches[i]) S.catches[i].n = Math.max(1, S.catches[i].n - 1); break;
+      case "ask-clear": pending = "clear"; renderConfirm(); return;
+      case "ask-sample": pending = "sample"; renderConfirm(); return;
+      case "ask-forget": pending = "forget"; renderConfirm(); return;
+      case "confirm-no": pending = null; renderConfirm(); return;
+      case "confirm-yes":
+        if (pending === "forget") {
+          drop(K_CONFIG); drop(K_DRAFT); drop(K_SENT);
+          location.replace(location.pathname);
+          return;
+        }
+        resetTo(pending === "sample" ? sampleState() : blankState());
+        pending = null;
+        break;
+      case "toggle-paste": showPaste = !showPaste; flash = null; renderHead(); return;
+      case "load-paste":
+        try {
+          var c = parseSetup($("setup-text").value);
+          store(K_CONFIG, c);
+          location.replace(location.pathname);
+        } catch (err) {
+          flash = { kind: "err", text: "設定を読み込めませんでした（" + err.message + "）。" };
+          renderHead();
+        }
+        return;
+      case "review": openReview(); return;
+      case "close-review": closeReview(); return;
+      case "send": send(); return;
+      case "new-day": resetTo(blankState()); result = null; save(); closeReview(); renderAll(); window.scrollTo(0, 0); return;
+      default: return;
+    }
+    save();
+    renderAll();
+    if (act === "add-catch") {
+      var inp = $("mesh-" + k + "-" + (S.catches.length - 1));
+      if (inp) inp.scrollIntoView({ block: "center" });
+    }
+    if (hadFocus) {
+      var sel = '[data-act="' + act + '"]' + (id ? '[data-id="' + id + '"]' : "") + (iAttr !== null ? '[data-i="' + iAttr + '"]' : "") + (v ? '[data-v="' + v + '"]' : "");
+      var nb = document.querySelector(sel);
+      if (nb && !nb.disabled) nb.focus({ preventScroll: true });
+    }
+  });
+
+  function onField(e){
+    var t = e.target;
+    if (t.id === "date") state.date = t.value;
+    else if (t.id === "recorder") state.recorder = t.value;
+    else if (t.id === "note") state.note = t.value;
+    else if (t.classList && t.classList.contains("mesh-in")) {
+      var c = state[state.tab].catches[+t.getAttribute("data-i")];
+      // 全角の数字は半角に直し、数字以外は入れない
+      var val = t.value.replace(/[０-９]/g, function(d){ return String.fromCharCode(d.charCodeAt(0) - 0xFEE0); }).replace(/[^0-9]/g, "").slice(0, 3);
+      if (val !== t.value) t.value = val;
+      t.classList.toggle("bad", !meshOk(val));
+      if (c) c.mesh = val;
+    } else return;
+    save(); renderSummary(); renderBar();
+  }
+  document.addEventListener("input", onField);
+  document.addEventListener("change", onField);
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape" && !$("review").hidden) closeReview(); });
+
+  $("recorder").innerHTML = '<option value="">選んでください</option>' +
+    MEMBERS.map(function(mb){ return '<option value="' + mb.id + '">' + esc(mb.name) + "</option>"; }).join("") +
+    '<option value="other">班員以外（後から入力など）</option>';
+  syncInputs();
+  save();
+  renderAll();
+})();
+</script>
+</body>
+</html>
