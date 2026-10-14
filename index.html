@@ -86,7 +86,7 @@ h2{font-size:18px;margin:0;font-weight:700;text-wrap:balance}
 .chip{height:42px;border-radius:21px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;padding:0}
 .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .step{display:grid;grid-template-columns:38px 1fr 38px;align-items:center;height:42px;border:1.5px solid var(--line);border-radius:21px;overflow:hidden;background:var(--surface)}
-.step button{height:100%;border:0;background:transparent;font-size:22px;line-height:1}
+.step button{height:100%;border:0;background:transparent;font-size:22px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;min-width:0}
 .step output{text-align:center;font-weight:700;font-variant-numeric:tabular-nums;color:var(--muted)}
 .step.has output{color:var(--accent)}
 
@@ -140,6 +140,7 @@ h2{font-size:18px;margin:0;font-weight:700;text-wrap:balance}
 .barin{max-width:560px;margin-inline:auto;display:flex;align-items:center;gap:12px}
 #barinfo{flex:1;min-width:0;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.4}
 #barinfo b{color:var(--fg)}
+#barinfo .nw{white-space:nowrap}
 #barinfo .sent{color:var(--ok);font-weight:700}
 #barinfo .changed{color:var(--warn);font-weight:700}
 .btn-primary{height:50px;padding:0 18px;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:17px;flex:none}
@@ -585,7 +586,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
     } else {
       tail = "<br>延べ " + fmt(days) + "日・獲物 " + (heads("am") + heads("pm")) + "頭";
     }
-    $("barinfo").innerHTML = "<b>" + esc(md(state.date)) + "</b>　午前 " + count("am") + "人・午後 " + count("pm") + "人" + tail;
+    $("barinfo").innerHTML = "<b>" + esc(md(state.date)) + "</b>　<span class=\"nw\">午前 " + count("am") + "人・午後 " + count("pm") + "人</span>" + tail;
   }
   function renderHist(){
     var h = live ? (load(K_SENT) || []) : [];
